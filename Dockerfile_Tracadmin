@@ -1,0 +1,51 @@
+FROM python:3.13.0a4-alpine3.19
+ARG TERM=xterm
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV TRAC_ADMIN_NAME admin
+ENV TRAC_ADMIN_PASSWD 12345
+ENV TRAC_PROJECT_NAME mytrac_project
+ENV TRAC_DIR /opt/trac
+ENV TRAC_INI $TRAC_DIR/conf/trac.ini
+ENV DB_LINK sqlite:db/trac.db
+EXPOSE 8123
+
+
+# Trac URL 
+# https://download.edgewall.org/trac/Trac-1.6-py3-none-any.whl
+
+
+# Avoid ERROR: invoke-rc.d: policy-rc.d denied execution of start.
+RUN echo "#!/bin/sh\nexit 0" > /usr/sbin/policy-rc.d
+
+WORKDIR /opt/trac
+
+# Installing some initial tools
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+  apt-get install -y locales apt-utils curl wget debconf &&\
+  rm -rf /var/lib/apt/lists/*
+
+
+# Setting up Locales
+RUN DEBIAN_FRONTEND=noninteractive locale-gen en_US en_US.UTF-8 pt_BR pt_BR.UTF-8 && dpkg-reconfigure locales
+#ENV LC_ALL pt_BR.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+
+# Setting up TzData
+ENV TZ=America/Fortaleza
+RUN DEBIAN_FRONTEND=noninteractive echo $TZ > /etc/timezone && \
+  apt-get update && apt-get install -y tzdata && \
+  rm /etc/localtime && \
+  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+  dpkg-reconfigure -f noninteractive tzdata && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+
+
+WORKDIR /opt/
+
+CMD ping localhost
