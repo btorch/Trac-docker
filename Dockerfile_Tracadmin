@@ -12,8 +12,8 @@ ENV LANGUAGE pt_BR.UTF-8
 ENV LC_ALL pt_BR.UTF-8
 
 
-RUN apk update && apk add --no-cache --update git musl musl-utils libc-dev \
-  musl-locales gcc musl-dev tzdata apache2-utils & \
+RUN apk update && apk add --no-cache --update musl musl-utils \
+  musl-locales tzdata & \
   ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
   echo $TZ > /etc/timezone
 
@@ -36,7 +36,9 @@ ENV TRAC_DIR /opt/trac/mytrac_project
 ENV TRAC_INI $TRAC_DIR/conf/trac.ini
 ENV DB_LINK sqlite:db/trac.db
 
-RUN pip install Trac Babel==2.9.1 Pygments textile docutils
+RUN apk add --no-cache --update git build-base \
+  musl-dev apache2-utils && \
+  pip install Trac Babel==2.9.1 Pygments textile docutils
 RUN mkdir -p $TRAC_PARENT_DIR && mkdir -p $TRAC_DIR && trac-admin $TRAC_DIR initenv $TRAC_PROJECT_NAME $DB_LINK
 # RUN trac-admin $TRAC_DIR deploy /tmp/deploy && mv /tmp/deploy/* $TRAC_DIR
 
