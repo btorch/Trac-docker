@@ -1,51 +1,51 @@
 FROM python:3.13.0a4-alpine3.19
 ARG TERM=xterm
-ARG DEBIAN_FRONTEND=noninteractive
+#ARG DEBIAN_FRONTEND=noninteractive
 
+EXPOSE 8000
+
+
+# Setting up Brasil Locale
+ENV TZ America/Fortaleza
+ENV LANG pt_BR.UTF-8
+ENV LANGUAGE pt_BR.UTF-8
+ENV LC_ALL pt_BR.UTF-8
+
+
+RUN apk update && apk add --no-cache --update git musl musl-utils musl-locales tzdata && \
+  rm /etc/localtime && \
+  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+  echo $TZ > /etc/timezone
+
+
+
+
+# TRAC INSTALL & SETUP
+# https://download.edgewall.org/trac/Trac-1.6-py3-none-any.whl
+# pip install Trac Jinja2 Babel==2.9.1 Pygments textile docutils
+# pip will automatically resolve the required dependencies (Jinja2 and setuptools) 
+# and download the latest packages from pypi.org
+#
 ENV TRAC_ADMIN_NAME admin
 ENV TRAC_ADMIN_PASSWD 12345
+ENV TRAC_USER_NAME tracker
+ENV TRAC_USER_PASSWD 12345
 ENV TRAC_PROJECT_NAME mytrac_project
 ENV TRAC_DIR /opt/trac
 ENV TRAC_INI $TRAC_DIR/conf/trac.ini
+ENV TRAC_PROJECT_PATH /opt/trac/mytrac_project
 ENV DB_LINK sqlite:db/trac.db
-EXPOSE 8123
+
+RUN pip install Trac Babel==2.9.1 Pygments textile docutils
+RUN mkdir -p $TRAC_DIR && trac-admin $TRAC_DIR initenv $TRAC_PROJECT_NAME $DB_LINK
+# RUN trac-admin $TRAC_DIR deploy /tmp/deploy && mv /tmp/deploy/* $TRAC_DIR
 
 
-# Trac URL 
-# https://download.edgewall.org/trac/Trac-1.6-py3-none-any.whl
+RUN trac-admin $TRAC_DIR permission add $TRAC_ADMIN_NAME TRAC_ADMIN && \
+  trac-admin $TRAC_DIR permission add $TRAC_USER_NAME gerencia && \
+  trac-admin $TRAC_DIR permission add gerencia TICKET_ADMIN ROADMAP_ADMIN \
+  REPORT_ADMIN WIKI_ADMIN SEARCH_VIEW TIMELINE_VIEW EMAIL_VIEW
 
+#WORKDIR $TRAC_DIR
 
-# Avoid ERROR: invoke-rc.d: policy-rc.d denied execution of start.
-RUN echo "#!/bin/sh\nexit 0" > /usr/sbin/policy-rc.d
-
-WORKDIR /opt/trac
-
-# Installing some initial tools
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-  apt-get install -y locales apt-utils curl wget debconf &&\
-  rm -rf /var/lib/apt/lists/*
-
-
-# Setting up Locales
-RUN DEBIAN_FRONTEND=noninteractive locale-gen en_US en_US.UTF-8 pt_BR pt_BR.UTF-8 && dpkg-reconfigure locales
-#ENV LC_ALL pt_BR.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
-
-
-# Setting up TzData
-ENV TZ=America/Fortaleza
-RUN DEBIAN_FRONTEND=noninteractive echo $TZ > /etc/timezone && \
-  apt-get update && apt-get install -y tzdata && \
-  rm /etc/localtime && \
-  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
-  dpkg-reconfigure -f noninteractive tzdata && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
-
-
-
-WORKDIR /opt/
-
-CMD ping localhost
+CMD tracd -s --port 8000 $TRAC_PROJECT_PATH
